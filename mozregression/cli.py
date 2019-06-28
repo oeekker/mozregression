@@ -20,6 +20,7 @@ from argparse import ArgumentParser, Action, SUPPRESS
 from mozlog.structuredlog import get_default_logger
 
 from mozregression import __version__
+from mozregression.branches import get_name
 from mozregression.dates import to_datetime, parse_date, is_date_or_datetime
 from mozregression.config import get_defaults, DEFAULT_CONF_FNAME, write_conf
 from mozregression.tc_authenticate import tc_authenticate
@@ -27,7 +28,8 @@ from mozregression.fetch_configs import REGISTRY as FC_REGISTRY, create_config
 from mozregression.errors import (MozRegressionError, DateFormatError,
                                   UnavailableRelease)
 from mozregression.releases import (formatted_valid_release_dates,
-                                    date_of_release)
+                                    date_of_release, tag_of_release,
+                                    tag_of_beta)
 from mozregression.log import init_logger, colorize
 
 
@@ -193,7 +195,7 @@ def create_parser(defaults):
                         help="application name. Default: %(default)s.")
 
     parser.add_argument("--repo",
-                        metavar="[mozilla-aurora|mozilla-inbound|autoland...]",
+                        metavar="[mozilla-inbound|autoland|mozilla-beta...]",
                         default=defaults["repo"],
                         help="repository name used for the bisection.")
 
@@ -405,10 +407,30 @@ class Configuration(object):
             value = parse_date(value)
         except DateFormatError:
             try:
-                new_value = parse_date(date_of_release(value))
-                self.logger.info("Using date %s for release %s"
-                                 % (new_value, value))
-                value = new_value
+                repo = self.options.repo
+                if (get_name(repo) == 'mozilla-release' or
+                        (not repo and re.match(r'^\d+\.\d\.\d$', value))):
+                    new_value = tag_of_release(value)
+                    if not repo:
+                        self.logger.info("Assuming repo mozilla-release")
+                        self.fetch_config.set_repo('mozilla-release')
+                    self.logger.info("Using tag %s for release %s"
+                                     % (new_value, value))
+                    value = new_value
+                elif (get_name(repo) == 'mozilla-beta' or
+                      (not repo and re.match(r'^\d+\.0b\d+$', value))):
+                    new_value = tag_of_beta(value)
+                    if not repo:
+                        self.logger.info("Assuming repo mozilla-beta")
+                        self.fetch_config.set_repo('mozilla-beta')
+                    self.logger.info("Using tag %s for release %s"
+                                     % (new_value, value))
+                    value = new_value
+                else:
+                    new_value = parse_date(date_of_release(value))
+                    self.logger.info("Using date %s for release %s"
+                                     % (new_value, value))
+                    value = new_value
             except UnavailableRelease:
                 self.logger.info("%s is not a release, assuming it's a hash..." % value)
         return value

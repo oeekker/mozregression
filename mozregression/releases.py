@@ -106,6 +106,31 @@ def date_of_release(release):
         raise UnavailableRelease(release)
 
 
+def tag_of_release(release):
+    """
+    Provide the mercurial tag of a release, suitable for use in place of a hash
+    """
+    if re.match(r'^\d+$', release):
+        release += '.0'
+    if re.match(r'^\d+\.\d(\.\d)?$', release):
+        return 'FIREFOX_%s_RELEASE' % release.replace('.', '_')
+    else:
+        raise UnavailableRelease(release)
+
+
+def tag_of_beta(release):
+    """
+    Provide the mercurial tag of a beta release, suitable for use in place of a
+    hash
+    """
+    if re.match(r'^\d+\.0b\d+$', release):
+        return 'FIREFOX_%s_RELEASE' % release.replace('.', '_')
+    elif re.match(r'^\d+(\.0)?$', release):
+        return 'FIREFOX_RELEASE_%s_BASE' % release.replace('.0', '')
+    else:
+        raise UnavailableRelease(release)
+
+
 def formatted_valid_release_dates():
     """
     Returns a formatted string (ready to be printed) representing

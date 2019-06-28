@@ -228,6 +228,20 @@ def test_launch(args, action, value):
     assert config.options.launch == value
 
 
+@pytest.mark.parametrize('args,repo,value', [
+    (['--launch=60.0', '--repo=m-r'], 'mozilla-release', 'FIREFOX_60_0_RELEASE'),
+    (['--launch=61', '--repo=m-r'], 'mozilla-release', 'FIREFOX_61_0_RELEASE'),
+    (['--launch=62.0.1'], 'mozilla-release', 'FIREFOX_62_0_1_RELEASE'),
+    (['--launch=63.0b4', '--repo=m-b'], 'mozilla-beta', 'FIREFOX_63_0b4_RELEASE'),
+    (['--launch=64', '--repo=m-b'], 'mozilla-beta', 'FIREFOX_RELEASE_64_BASE'),
+    (['--launch=65.0b11'], 'mozilla-beta', 'FIREFOX_65_0b11_RELEASE'),
+])
+def test_versions(args, repo, value):
+    config = do_cli(*args)
+    assert config.fetch_config.repo == repo
+    assert config.options.launch == value
+
+
 def test_bad_date_later_than_good():
     with pytest.raises(errors.MozRegressionError) as exc:
         do_cli('--good=2015-01-01', '--bad=2015-01-10', '--find-fix')
@@ -248,13 +262,6 @@ def test_basic_inbound():
     assert config.action == 'bisect_inbounds'
     assert config.options.good == 'c1'
     assert config.options.bad == 'c5'
-
-
-def test_inbound_must_be_doable():
-    # no inbounds for thunderbird
-    with pytest.raises(errors.MozRegressionError) as exc:
-        do_cli('--app', 'thunderbird', '--good=c1', '--bad=c5')
-        assert 'Unable to bissect inbound' in str(exc.value)
 
 
 def test_list_releases(mocker):

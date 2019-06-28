@@ -350,10 +350,28 @@ class FirefoxLauncher(MozRunnerLauncher):
         super(FirefoxLauncher, self)._install(dest)
         self._disableUpdateByPolicy()
 
+    def _start(self, profile=None, addons=(), cmdargs=(), preferences=None,
+               adb_profile_dir=None):
+        super(FirefoxLauncher, self)._start(profile, addons,
+                                            ['--allow-downgrade'] + cmdargs,
+                                            preferences, adb_profile_dir)
+
+
+class ThunderbirdRegressionProfile(ThunderbirdProfile):
+    """
+    Specialized Profile subclass for Thunderbird
+    """
+
+    preferences = {
+        # Don't automatically update the application
+        'app.update.enabled': False,
+        'app.update.auto': False,
+    }
+
 
 @REGISTRY.register('thunderbird')
 class ThunderbirdLauncher(MozRunnerLauncher):
-    profile_class = ThunderbirdProfile
+    profile_class = ThunderbirdRegressionProfile
 
 
 class AndroidLauncher(Launcher):

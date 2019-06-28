@@ -202,7 +202,8 @@ class CommonConfig(object):
 
         Note that this method relies on the repo and build type defined.
         """
-        return (branches.get_category(self.repo) in ('integration', 'try') or
+        return (branches.get_category(self.repo) in
+                ('integration', 'try', 'releases') or
                 # we can find the asan builds (firefox and jsshell) in
                 # archives.m.o
                 self.build_type not in ('opt', 'asan', 'shippable'))
@@ -312,7 +313,7 @@ class FennecNightlyConfigMixin(NightlyConfigMixin):
 
     def get_nightly_repo_regex(self, date):
         repo = self.get_nightly_repo(date)
-        if repo in ('mozilla-central', 'mozilla-aurora'):
+        if repo in ('mozilla-central',):
             if date < datetime.date(2014, 12, 6):
                 repo += "-android"
             elif date < datetime.date(2014, 12, 13):
@@ -342,7 +343,7 @@ class InboundConfigMixin:
         """
         Returns the first taskcluster route for a specific changeset
         """
-        return self.tk_inbound_routes(push).next()
+        return next(self.tk_inbound_routes(push))
 
     @abstractmethod
     def tk_inbound_routes(self, push):
@@ -377,9 +378,10 @@ class InboundConfigMixin:
         Returns the takcluster options, including the credentials required to
         download private artifacts.
         """
-        if not self.tk_needs_auth():
-            return None
-        return {'credentials': self._tk_credentials}
+        tk_options = {'rootUrl': 'https://taskcluster.net'}
+        if self.tk_needs_auth():
+            tk_options.update({'credentials': self._tk_credentials})
+        return tk_options
 
 
 def _common_tk_part(inbound_conf):
@@ -430,6 +432,19 @@ class FennecInboundConfigMixin(InboundConfigMixin):
             self._inc_used_build()
             return
 
+
+class ThunderbirdInboundConfigMixin(InboundConfigMixin):
+    default_inbound_branch = 'comm-central'
+
+    def tk_inbound_routes(self, push):
+        for build_type in self.build_types:
+            yield 'comm.v2.{}.revision.{}.thunderbird.{}-{}'.format(
+                self.inbound_branch, push.changeset, _common_tk_part(self),
+                build_type
+            )
+            self._inc_used_build()
+        return
+
 # ------------ full config implementations ------------
 
 
@@ -474,7 +489,8 @@ class FirefoxConfig(CommonConfig,
 
 @REGISTRY.register('thunderbird')
 class ThunderbirdConfig(CommonConfig,
-                        ThunderbirdNightlyConfigMixin):
+                        ThunderbirdNightlyConfigMixin,
+                        ThunderbirdInboundConfigMixin):
     pass
 
 
